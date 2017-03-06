@@ -80,18 +80,6 @@
           setup();
         };
 
-    const clearCanvas = () => {
-        ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
-        const data = {
-                x: 0,
-                y: 0,
-                height: 800,
-                width: 1200, 
-                imgData: canvas.toDataURL()   
-            };
-        socket.emit("update", data);
-    }
-
 	const doMousedown = (mouseData) => {
 	    dragging = true;
 
