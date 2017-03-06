@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+    label, span{
+      	font-size: 16px;
+      	padding-right:2em;
+        padding-left:2em;
+      }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
+    <script type="text/babel" >
+        "use strict";
+        let canvas = document.getElementById("canvas");
+        let ctx = canvas.getContext("2d");
+        let sendBufferCanvas;
+        let sendBufferCtx;
+        let dragging = false;
+        let strokeStyleSelector = document.querySelector('#strokeStyleSelector');
+        let eraser = document.querySelector('#eraseButton');
+
+        const socket = io.connect();
+
+        const connectSocket = (e) => {
+            socket.on('connect', () => {
+                console.log('connecting');
+
+                socket.emit('join');
+            });
+
+            socket.on('draw', (data) => {
+                console.log(data);
+                handleMessage(data);
+            });
+        };
+
+        const setup = () => {
+            sendBufferCanvas = document.createElement("canvas");
+            sendBufferCanvas.height = 200;
+            sendBufferCanvas.width = 200;
+            sendBufferCtx = sendBufferCanvas.getContext("2d");
+            
+            ctx.fillStyle = "#FF0000";
+            let newX = Math.floor(Math.random()*500 +10);
+            let newY = Math.floor(Math.random()*500 +10);
+            sendBufferCtx.fillRect(0,0, 200, 200); //draw to hidden buffer-->
+
+            const data = {
+                x: 0,
+                y: 0,
+                height: 800,
+                width: 1200, 
+                imgData: sendBufferCanvas.toDataURL()    
+            };
+
+            //socket.emit("update", data);
+        }
+
+        const handleMessage = (data) => {
+
+            let image = new Image();
+                        image.src = data.imgData;
+
+            image.onload = () => {
+                ctx.save();
+                ctx.globalCompositeOperation = "source-over"; //this is default for canvas-->
+                ctx.drawImage(image, data.x, data.y, data.width, data.height);    
+                ctx.restore();
+            };
+        }
+
+        const init = () => {
+        //Hook up event listeners
+		  canvas.onmousedown = doMousedown;
+		  canvas.onmousemove = doMousemove;
+		  canvas.onmouseup = doMouseup;
+		  canvas.onmouseout = doMouseout;
+          connectSocket();
+          setup();
+        };
+
+    const clearCanvas = () => {
+        ctx.clearRect(0,0,ctx.canvas.width, ctx.canvas.height);
+        const data = {
+                x: 0,
+                y: 0,
+                height: 800,
+                width: 1200, 
+                imgData: canvas.toDataURL()   
+            };
+        socket.emit("update", data);
+    }
+
+	const doMousedown = (mouseData) => {
+	    dragging = true;
+
+	    //get location off mouse in cannvas coordinates
+	    var mouse = getMouse(mouseData);
+	     ctx.beginPath();
+	     ctx.moveTo(mouse.x, mouse.y);
+	}
+
+    const doMousemove = (mouseData) => {
+ 	    //bail out if the mouse button is not down
+ 	    if (!dragging) return;
+
+ 	    //get location of mouse in canvas coordinates
+ 	    var mouse = getMouse(mouseData);
+
+ 	      // set ctx.strokeStyle and ctx.lineWidth to correct values and switch if eraser
+ 	      ctx.strokeStyle = strokeStyleSelector.value;
+ 	      ctx.lineWidth = 5;
+          if(eraser.checked == true) {
+              ctx.strokeStyle = "white";
+              ctx.lineWidth = 15;
+          }
+
+ 	      //draw a line to x,y of mouse
+ 	      ctx.lineTo(mouse.x, mouse.y);
+
+ 	      //stroke the line
+ 	      ctx.stroke();
+    }
+
+    const doMouseup = () => {
+	   ctx.closePath();
+       dragging = false;
+            const data = {
+                x: 0,
+                y: 0,
+                height: 800,
+                width: 1200, 
+                imgData: canvas.toDataURL()    
+            };
+        socket.emit("update", data);
+    }
+
+	const doMouseout = () => {
+	   ctx.closePath();
+	   dragging = false;
+        const data = {
+                x: 0,
+                y: 0,
+                height: 800,
+                width: 1200, 
+                imgData: canvas.toDataURL()    
+            };
+        socket.emit("update", data);
+	}
+
+	const getMouse = (mouseData) => {
+		var mouse = {}
+		mouse.x = mouseData.pageX - mouseData.target.offsetLeft;
+		mouse.y = mouseData.pageY - mouseData.target.offsetTop;
+		return mouse;
+	}
+
+        window.onload = init;
+    </script>
+</head>
+<body>
+    <canvas id="canvas" width="1200" height="800" style="border: 1px solid black;"></canvas><br/>
+        <label>
+            Stroke Color:
+            <select id="strokeStyleSelector">
+                <option value="black">Black</option>
+                <option value="red">Red</option>
+                <option value="green">Green</option>
+                <option value="blue">Blue</option>
+            </select>
+        </label>
+        <span>Eraser<input id="eraseButton" type="checkbox" value="Eraser"/></span>
+    <p></p>
+</body>
+</html>
